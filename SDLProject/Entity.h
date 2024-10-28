@@ -17,7 +17,7 @@ class Entity
 private:
     bool m_is_active = true;
     
-    int m_walking[4][4]; // 4x4 array for walking animations
+    int m_walking[4][4];
 
     
     EntityType m_entity_type;
@@ -63,6 +63,7 @@ private:
 public:
     // ————— STATIC VARIABLES ————— //
     static constexpr int SECONDS_PER_FRAME = 4;
+    bool collision = false;
 
     // ————— METHODS ————— //
     Entity();
@@ -81,7 +82,7 @@ public:
     
     int const check_winner(Entity *collidable_entities, int collidable_entity_count, Entity* Target);
 
-    void update(float delta_time, Entity *player, Entity *collidable_entities, int collidable_entity_count, Entity* Target);
+    void update(float delta_time, Entity *player, Entity *collidable_entities, int collidable_entity_count);
     void render(ShaderProgram* program);
 
     void ai_activate(Entity *player);
@@ -127,7 +128,10 @@ public:
     void const set_entity_type(EntityType new_entity_type)  { m_entity_type = new_entity_type;};
     void const set_ai_type(AIType new_ai_type){ m_ai_type = new_ai_type;};
     void const set_ai_state(AIState new_state){ m_ai_state = new_state;};
-    void const set_position(glm::vec3 new_position) { m_position = new_position; }
+    void const set_position(glm::vec3 new_position) {
+        m_position = new_position;
+        std::cout << "Set position to: (" << m_position.x << ", " << m_position.y << ")" << std::endl;
+    }
     void const set_velocity(glm::vec3 new_velocity) { m_velocity = new_velocity; }
     void const set_acceleration(glm::vec3 new_acceleration) { m_acceleration = new_acceleration; }
     void const set_movement(glm::vec3 new_movement) { m_movement = new_movement; }

@@ -1,3 +1,13 @@
+/**
+* Author: [Jaden Ritchie]
+* Assignment: Lunar Lander
+* Date due: 2024-10-27, 11:59pm
+* I pledge that I have completed this assignment without
+* collaborating with anyone else, in conformance with the
+* NYU School of Engineering Policies and Procedures on
+* Academic Misconduct.
+**/
+
 #define GL_SILENCE_DEPRECATION
 #define STB_IMAGE_IMPLEMENTATION
 #define LOG(argument) std::cout << argument << '\n'
@@ -72,6 +82,10 @@ constexpr GLint TEXTURE_BORDER   = 0;
 
 Entity* target;
 
+bool win = false;
+bool lose = false;
+bool start = false;
+
 GLuint g_font_texture_id;
 
 GameResult g_game_result = IN_PROGESS;
@@ -96,7 +110,7 @@ ShaderProgram g_shader_program;
 glm::mat4 g_view_matrix, g_projection_matrix;
 
 float g_previous_ticks = 0.0f;
-int g_fuel = 1000;
+int g_fuel = 100000;
 float g_accumulator = 0.0f;
 
 AppStatus g_app_status = RUNNING;
@@ -141,7 +155,7 @@ void initialise()
 {
     // ––––– GENERAL STUFF ––––– //
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-    g_display_window = SDL_CreateWindow("Hello, AI!",
+    g_display_window = SDL_CreateWindow("George's Lunar Lander!",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   WINDOW_WIDTH, WINDOW_HEIGHT,
                                   SDL_WINDOW_OPENGL);
@@ -168,9 +182,7 @@ void initialise()
 
     g_shader_program.set_projection_matrix(g_projection_matrix);
     g_shader_program.set_view_matrix(g_view_matrix);
-
     glUseProgram(g_shader_program.get_program_id());
-
 
 
     glClearColor(BG_RED, BG_BLUE, BG_GREEN, BG_OPACITY);
@@ -182,19 +194,27 @@ void initialise()
 
     g_game_state.platforms = new Entity[PLATFORM_COUNT];
 
-    for (int i = 0; i < PLATFORM_COUNT; i++)
+    for (int i = 0; i < 3; i++)
     {
     g_game_state.platforms[i] = Entity(platform_texture_id,0.0f, 0.4f, 1.0f, PLATFORM);
-    g_game_state.platforms[i].set_position(glm::vec3(i - PLATFORM_OFFSET, -3.0f, 0.0f));
-    g_game_state.platforms[i].update(0.0f, NULL, NULL, 0, target);
+    g_game_state.platforms[i].set_position(glm::vec3(i - 4.0f, -3.5f, 0.0f));
+    g_game_state.platforms[i].update(0.0f, NULL, NULL, 0);
+//        std::cout << i << std::endl;
     }
+    
+    for (int i = 3; i < PLATFORM_COUNT; i++)
+    {
+    g_game_state.platforms[i] = Entity(platform_texture_id,0.0f, 0.4f, 1.0f, PLATFORM);
+    g_game_state.platforms[i].set_position(glm::vec3(i - 3.0f, -3.5f, 0.0f));
+    g_game_state.platforms[i].update(0.0f, NULL, NULL, 0);
+    }
+    
     
     GLuint win_texture_id = load_texture(WIN_FILEPATH);
     g_game_state.win_platform = new Entity(win_texture_id, 0.0f, 0.4f, 1.0f, PLATFORM);
-    g_game_state.win_platform->set_position(glm::vec3(3.0f, -3.0f, 0.0f));
-    
-    target = g_game_state.win_platform;
-    
+    g_game_state.win_platform->set_position(glm::vec3(-1.0f, -3.5f, 0.0f));
+    g_game_state.win_platform->update(0.0f, NULL, NULL, 0);
+        
 
     //GEORGE//
     GLuint player_texture_id = load_texture(SPRITESHEET_FILEPATH);
@@ -207,7 +227,7 @@ void initialise()
     { 0, 4, 8, 12 }   // for George to move downwards
     };
 
-    glm::vec3 acceleration = glm::vec3(0.0f,-4.905f, 0.0f);
+    glm::vec3 acceleration = glm::vec3(0.0f,0.0f, 0.0f);
 
     g_game_state.player = new Entity(
     player_texture_id,         // texture id
@@ -225,7 +245,8 @@ void initialise()
     PLAYER
     );
     
-    g_game_state.player->set_position(glm::vec3(0.0f,0.0f,0.0f));
+    g_game_state.player->set_position(glm::vec3(0.0f,3.0f,0.0f));
+    std::cout << "Player initial position: " << g_game_state.player->get_position().y << std::endl;
 
 
     // Jumping
@@ -401,67 +422,79 @@ void draw_text(ShaderProgram *program, GLuint font_texture_id, std::string text,
     glDisableVertexAttribArray(program->get_tex_coordinate_attribute());
 }
 
-void update()
-{
+void update() {
     float ticks = (float)SDL_GetTicks() / MILLISECONDS_IN_SECOND;
     float delta_time = ticks - g_previous_ticks;
     g_previous_ticks = ticks;
 
     delta_time += g_accumulator;
 
-    if (delta_time < FIXED_TIMESTEP)
-    {
+    if (delta_time < FIXED_TIMESTEP) {
         g_accumulator = delta_time;
         return;
     }
 
-    while (delta_time >= FIXED_TIMESTEP)
-    {
-        g_game_state.player->update(FIXED_TIMESTEP, g_game_state.player, g_game_state.platforms, PLATFORM_COUNT, target);
+    while (delta_time >= FIXED_TIMESTEP) {
+        g_game_state.player->update(FIXED_TIMESTEP, g_game_state.player, g_game_state.platforms, PLATFORM_COUNT);
+        
+        if (g_game_result == LOST) {
+            g_game_state.player->set_velocity(glm::vec3(0.0f));
+            g_game_state.player->set_acceleration(glm::vec3(0.0f));
+            g_game_state.player->set_movement(glm::vec3(0.0f));
+            break;
+        }
 
-//        for (int i = 0; i < ENEMY_COUNT; i++)
-//            g_game_state.enemies[i].update(FIXED_TIMESTEP,
-//                                           g_game_state.player,
-//                                           g_game_state.platforms,
-//                                           PLATFORM_COUNT,
-//                                           target);
+        if (g_game_state.player->check_collision(g_game_state.win_platform)) {
+            g_game_result = WON;
+            
+            g_game_state.player->set_velocity(glm::vec3(0.0f));
+            g_game_state.player->set_acceleration(glm::vec3(0.0f));
+            
+        } else {
+            for (int i = 0; i < PLATFORM_COUNT; i++) {
+                if (g_game_state.platforms[i].collision) {
+                    g_game_result = LOST;
+                    break;
+                }
+            }
+            
+        }
 
         delta_time -= FIXED_TIMESTEP;
     }
 
     g_accumulator = delta_time;
-    g_game_result = g_game_state.player->get_game_result();
+//    std::cout << "Game result after update: " << g_game_result << std::endl;
 }
 
-void render()
-{
+
+void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     g_game_state.player->render(&g_shader_program);
 
-    for (int i = 0; i < PLATFORM_COUNT; i++)
+    for (int i = 0; i < PLATFORM_COUNT; i++) {
         g_game_state.platforms[i].render(&g_shader_program);
-//    for (int i = 0; i < ENEMY_COUNT; i++)
-//        g_game_state.enemies[i].render(&g_shader_program);
-    if (g_game_result == IN_PROGESS){
-        
+    }
+
+    g_game_state.win_platform->render(&g_shader_program);
+
+    if (g_game_result == IN_PROGESS) {
         draw_text(&g_shader_program, g_font_texture_id, "Fuel:" + std::to_string(g_fuel), 0.5f, 0.05f,
-                      glm::vec3(-3.5f, 2.0f, 0.0f));
-        
-    }
-    else if (g_game_result == WON){
+                  glm::vec3(-3.5f, 2.0f, 0.0f));
+    } else if (g_game_result == WON) {
         draw_text(&g_shader_program, g_font_texture_id, "You Won!!!", 0.5f, 0.05f,
-                      glm::vec3(-3.5f, 2.0f, 0.0f));
-    }
-    else if (g_game_result == LOST){
+                  glm::vec3(-3.5f, 2.0f, 0.0f));
+    } else if (g_game_result == LOST) {
         draw_text(&g_shader_program, g_font_texture_id, "You Lost :(", 0.5f, 0.05f,
-                      glm::vec3(-3.5f, 2.0f, 0.0f));
+                  glm::vec3(-3.5f, 2.0f, 0.0f));
     }
-    
-        
 
     SDL_GL_SwapWindow(g_display_window);
 }
+
+
+
 
 void shutdown()
 {
@@ -481,8 +514,9 @@ int main(int argc, char* argv[])
 
     while (g_app_status == RUNNING)
     {
-        process_input();
+        
         update();
+        process_input();
         render();
     }
 
